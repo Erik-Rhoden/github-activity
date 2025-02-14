@@ -24,8 +24,8 @@ def get_data(args):
             if response.status == 403:
                 print("Rate Limit Exceeded! Try again later.")
                 return {}
-            if response.status != 200:
-                print(f"Github API returned status {response.status}")
+            elif response.status != 200:
+                print("Resource not found. Potentially incorrect username.")
                 return {}
 
             data = response.read()
@@ -44,6 +44,8 @@ def get_data(args):
 
 def events(args):
     events = get_data(args)
+    if not events:
+        return
 
     limit = args.limit
     if args.commits:
@@ -120,9 +122,12 @@ def issues_open(args):
 
             response = conn.getresponse()
 
-            if response.status != 200:
-                print(f"GitHub API returned status {response.status}")
-                return []
+            if response.status == 403:
+                print("Rate Limit Exceeded! Try again later.")
+                return {}
+            elif response.status != 200:
+                print("Resource not found. Potentially incorrect username.")
+                return {}
 
             data = response.read()
             results = json.loads(data.decode("utf-8"))
