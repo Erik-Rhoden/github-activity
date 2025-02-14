@@ -1,6 +1,6 @@
 # github-activity
 
-The GitHub User Activity CLI is a no nonsense, low resource tool to retrieve data on commits, open issues, and starred repos.
+The GitHub User Activity CLI is a no nonsense, low resource tool to retrieve data on commits, open issues, and starred repos. This was done as part of the Roadmap.sh Projects (https://roadmap.sh/projects/github-user-activity)
 
 ## Table of Contents
 
