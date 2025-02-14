@@ -1,38 +1,46 @@
 import http.client
 import json
+import socket
 
 def get_data(args):
-    github_api = "api.github.com"
-    endpoint = f"/users/{args.username}/{args.command}"
-    header = {"User-Agent" : "github-cli-fetcher",
-              "Accept": "application/vnd.github.v3+json"
-              }
-
     try:
-        conn = http.client.HTTPSConnection(github_api)
-        conn.request("GET", endpoint, headers=header)
-        response = conn.getresponse()
+        socket.getaddrinfo("api.github.com", 443)
+    except socket.gaierror:
+        print("Network error: Unable to resolve host. Check your internet connection.")
+        return []
+    
+    try:
+        github_api = "api.github.com"
+        endpoint = f"/users/{args.username}/{args.command}"
+        header = {"User-Agent" : "github-cli-fetcher",
+                "Accept": "application/vnd.github.v3+json"
+                }
 
-        if response.status == 403:
-            print("Rate Limit Exceeded! Try again later.")
-            return
-        if response.status != 200:
-            print(f"Github API returned status {response.status}")
-            return
+        conn = http.client.HTTPSConnection(github_api, timeout=2)
+        try:
+            conn.request("GET", endpoint, headers=header)
+            response = conn.getresponse()
 
-        data = response.read()
-        result = json.loads(data.decode("utf-8"))
+            if response.status == 403:
+                print("Rate Limit Exceeded! Try again later.")
+                return {}
+            if response.status != 200:
+                print(f"Github API returned status {response.status}")
+                return {}
 
-    except http.client.HTTPException as e:
-        print(f"HTTP error occured: {e}")
+            data = response.read()
+            return json.loads(data.decode("utf-8"))
+        finally:
+            conn.close()
+
+    except (http.client.HTTPException, TimeoutError, socket.timeout) as e:
+        print(f"Network or HTTP error: {e}")
     except json.JSONDecodeError:
         print("Error: Failed to parse JSON response.")
     except Exception as e:
-        print(f"An unexpected error occured: {e}")
-    finally:
-        conn.close()
+        print(f"An unexpected error occurred: {e}")
 
-    return result
+    return {}
 
 def events(args):
     events = get_data(args)
@@ -42,10 +50,11 @@ def events(args):
         pushed_commits(args, limit, events)
         return
     
-    print(f'Output:')
     repos = pushed_commits(args, limit, events)
-    for repo in repos:
-        print(f'- Pushed {repos[repo]} to {repo}')
+    if repos:
+        print(f'Output:')
+    for repo, count in repos.items():
+        print(f'- Pushed {count} to {repo}')
     issues = issues_open(args)
     for issue in issues:
         print(f'- Opened a new issue in {issue}')
@@ -57,6 +66,7 @@ def pushed_commits(args, limit, events):
     count = 0
     repo = ""
     repo_dict = {}
+
     for event in events:
         if event.get("type") == "PushEvent" and count < limit:
             repo = event['repo']['name']
@@ -71,59 +81,73 @@ def pushed_commits(args, limit, events):
         print(f'- Pushed {repo_dict[repo]} to {repo}') 
         
 def starred_repos(args):
+    original_command = args.command
     if args.command == 'events':
         args.command = 'starred'
-        stars = get_data(args)
+    
+    stars = get_data(args)
 
-        starred = []
-        for star in stars:
-            starred.append(json.dumps(star['full_name']))
+    args.command = original_command  
 
+    if not stars:
+        return [] if original_command == "events" else print("No repos have been starred")
+
+    starred = [star["full_name"] for star in stars]
+
+    if original_command == "events":
         return starred
     
-    else:
-        stars = get_data(args)
-
-        if not stars:
-            print("No repos have been starred")
-
-        for star in stars:
-            print(f'- Starred {json.dumps(star['full_name'])}')
+    for star in starred:
+        print(f"- Starred {star}")
 
 def issues_open(args):
-    github_api = "api.github.com"
-    endpoint = f"/search/issues?q=author:{args.username}+type:issue+state:open"
-    header = {"User-Agent" : "github-cli-fetcher",
-              "Accept": "application/vnd.github.v3+json"
-              }
-
     try:
-        conn = http.client.HTTPSConnection(github_api)
-        conn.request("GET", endpoint, headers=header)
+        socket.getaddrinfo("api.github.com", 443)
+    except socket.gaierror:
+        print("Network error: Unable to resolve host. Check your internet connection.")
+        return []
+    
+    try:
+        github_api = "api.github.com"
+        endpoint = f"/search/issues?q=author:{args.username}+type:issue+state:open"
+        header = {"User-Agent" : "github-cli-fetcher",
+                "Accept": "application/vnd.github.v3+json"
+                }
+        
+        conn = http.client.HTTPSConnection(github_api, timeout=2)
+        try:
+            conn.request("GET", endpoint, headers=header)
 
-        response = conn.getresponse()
+            response = conn.getresponse()
 
-        data = response.read()
+            if response.status != 200:
+                print(f"GitHub API returned status {response.status}")
+                return []
 
-        results = json.loads(data.decode("utf-8"))
+            data = response.read()
+            results = json.loads(data.decode("utf-8"))
+        
+            items = results.get('items', [])
 
-        items = results.get('items', [])
+            if args.command == 'events':
+                return items
 
-        if args.command == 'events':
-            return items
-
-        if not items:
-            print("no open issues")
-            return
-        else:
+            if not items:
+                print("no open issues")
+                return
+            
             for item in items:
-                print(f'- Opened a new issue in {item}')
+                repo_url = item.get("repository_url", "")
+                repo_name = "/".join(repo_url.split("/")[-2:]) if repo_url else "Unknown Repo"
+                print(f'- Opened a new issue in {repo_name}')
+        finally:
+            conn.close()
 
-    except http.client.HTTPException as e:
-        print(f"HTTP error occured: {e}")
+    except (http.client.HTTPException, TimeoutError, socket.timeout) as e:
+        print(f"Network or HTTP error: {e}")
     except json.JSONDecodeError:
         print("Error: Failed to parse JSON response.")
     except Exception as e:
-        print(f"An unexpected error occured: {e}")
-    finally:
-        conn.close()
+        print(f"An unexpected error occurred: {e}")
+
+    return {}
