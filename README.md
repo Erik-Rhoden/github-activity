@@ -4,9 +4,9 @@ The GitHub User Activity CLI is a no nonsense, low resource tool to retrieve dat
 
 ## Table of Contents
 
-[Features](#features)
-[Requirements](#requirements)
-[Installation](#installation)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
 
 
 ## Features
