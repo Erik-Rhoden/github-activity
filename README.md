@@ -7,7 +7,7 @@ The GitHub User Activity CLI is a no nonsense, low resource tool to retrieve dat
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
-- [Contribuing](#contributing)
+- [Contributing](#contributing)
 
 
 ## Features
@@ -59,6 +59,9 @@ or (no symlink)
 ```bash
 python3 main.py -h
 ```
+
+## Contributing
+
 ### Submit a pull request
 
 If you'd like to contribute, please fork the repository and open a pull request to the `main` branch.
